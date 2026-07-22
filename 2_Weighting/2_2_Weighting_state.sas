@@ -220,23 +220,10 @@
 	Run;
 
 	/*@Action: Subset to observations that are relevant to the analysis ***/
-	proc freq data=sasin.include_ehr&year_loop.&month_loop.;
-		table state/list missing out=state_freq&year_loop.&month_loop. (where=(count ge 250));
+	data select_files00 (rename=(prmpay2=insurance2 agecat8=age8 agecat3=age3));
+		set sasin.include_ehr&year_loop.&month_loop. (rename=(region=region_char));
 		where month=&month_loop. and year=&year_loop.;
-	run;
-
-	proc sort data=sasin.include_ehr&year_loop.&month_loop. out=include_ehr&year_loop.&month_loop.;
-		by state;
-
-		where month=&month_loop. and year=&year_loop. and region is not null and ru2 is not null and ethnicity0 is not null;
-	run;
-
-	data select_files0 (rename=(prmpay2=insurance2 agecat8=age8 agecat3=age3));
-		merge include_ehr&year_loop.&month_loop. (in=a) state_freq&year_loop.&month_loop. (in=b);
-		by state;
-
-		if a and b;
-		
+				
 		unique_id=cats("id",_N_);
 
 		if raceeth4="White" then
@@ -245,6 +232,62 @@
 		age8_orig=agecat8;
 		raceeth4_orig=raceeth4;
 		raceeth_col_orig=raceeth_col;
+		
+		if region_char="Northeast" then region='1';
+		else if region_char="Midwest" then region='2';
+		else if region_char="South" then region='3';
+		else if region_char="West" then region='4';
+
+		/*@Action: remove missing state*/
+		if state="" then
+			delete;
+
+		/*@Action: remove missing rural/urban designation*/
+		if ru2="" then
+			delete;
+
+		/*@Action: remove missing ethnicity*/
+		if ethnicity0=. then
+			delete;
+
+		/*@Action: remove missing pph**/
+		if pph="" then
+			delete;
+		
+		/*@Action: Remove >84 and <20 ***/
+		if agec0<5 or agec0>12 then
+			delete;
+
+		/*@Action: Remove unknown sex ***/
+		if sex0=. then
+			delete;
+
+		/*@Action: Remove unknown race **/
+		if raceeth in ("Unspecified","Missing","") then
+			delete;
+
+		/*@Action: Remove pregnant males ***/
+		if pregnant=1 and sex0=1 then
+			delete;
+
+		/*@Action: Remove pregnant females ***/
+		if pregnant=1 and sex0=2 then
+			delete;
+	run;
+
+	proc sort data=select_files00;
+		by state;
+	run;
+
+	proc freq data=select_files00;
+		table state/list missing out=state_freq&year_loop.&month_loop. (where=(count ge 250));
+	run;
+
+	data select_files0;
+		merge select_files00 (in=a) state_freq&year_loop.&month_loop. (in=b);
+		by state;
+
+		if a and b;
 	run;
 
 	proc sort data=select_files0;
@@ -419,7 +462,7 @@
 
 	*@Action: complete alt 2 raking method with state: state * age8 state * raceeth4 state * ru2 state * age3 * sex state * raceeth2 * sex state * insurance2 * raceeth2 state * insurance2 * age3;
 	%raking(inds=prepped_file1&year_loop.&month_loop.
-		, outds=wgt_alt2_state_&year_loop.&month_loop.
+		, outds=wgt_htn_state_&year_loop.&month_loop.
 		, inwt=initwgt
 		, freqlist=acs_state_age8&year_loop.&month_loop. acs_state_raceeth4&year_loop.&month_loop. acs_state_ru2&year_loop.&month_loop. acs_state_age_sex&year_loop.&month_loop. acs_state_race_col_sex&year_loop.&month_loop. acs_state_ins_age&year_loop.&month_loop. acs_state_ins_race_col&year_loop.&month_loop.
 		, outwt=rakewgt
@@ -434,12 +477,12 @@
 		by unique_id;
 	run;
 
-	proc sort data=wgt_alt2_state_&year_loop.&month_loop. (keep=unique_id rakewgt);
+	proc sort data=wgt_htn_state_&year_loop.&month_loop. (keep=unique_id rakewgt);
 		by unique_id;
 	run;
 
-	data sasout.wgt_alt2_state_&year_loop.&month_loop. (drop=unique_id);
-		merge prepped_file&year_loop.&month_loop. wgt_alt2_state_&year_loop.&month_loop.;
+	data sasout.wgt_htn_state_&year_loop.&month_loop. (drop=unique_id);
+		merge prepped_file&year_loop.&month_loop. wgt_htn_state_&year_loop.&month_loop.;
 		by unique_id;
 	run;
 

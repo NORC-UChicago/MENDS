@@ -2,7 +2,7 @@
 /***PROGRAM: 2_0_quickstart_MENDS_weighting.SAS						 ***/
 /***VERSION: 1.0 									 ***/
 /***AUTHOR: DEVI CHELLURI (NORC) and NADARAJASUNDARAM GANESH (NORC)				 ***/
-/***DATE CREATED: 12/08/2023, DATE LAST MOD: 07/29/2025					 ***/
+/***DATE CREATED: 12/08/2023, DATE LAST MOD: 05/27/2026					 ***/
 /***INPUT: PREPROCESSED MENDS DATA 						 ***/
 /***INPUT: AMERICAN COMMUNITY SURVEY (ACS) DATA 					 ***/
 /***OUTPUT: WEIGHTS FOR MENDS DATA AT THE STATE OR NATIONAL LEVEL.				 ***/
@@ -38,12 +38,12 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 
 /*@Action: Bring in code from external files*/
 %Include "&PROGFILEPATH.\2_1_Raking_macros.sas" / LRECL = 1000;
-%Include "&PROGFILEPATH.\2_2_Weighting_alt2_&geographic_level..sas" / LRECL = 1000;
+%Include "&PROGFILEPATH.\2_2_Weighting_&geographic_level..sas" / LRECL = 1000;
 
 /*@Action: Import national ACS control totals to be used in weighting ***/
 %macro acs_controls_natl(var=);
 
-	proc import datafile= "P:\A154\Common\PUF_Data\ACS2023\ACS2023_national_population_totals.xlsx" 
+	proc import datafile= "P:\A335\Common\PUF_Data\ACS2024\ACS2024_national_population_totals.xlsx" 
 		out= &var.
 		dbms=xlsx
 		replace;
@@ -79,7 +79,7 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 
 			data acs_natl_&var.;
 				set &var.;
-				mrgtotal=ACS23;
+				mrgtotal=ACS24;
 				&var._raking=catx("_", &var1., &var2.);
 				keep mrgtotal &var._raking;
 			run;
@@ -91,7 +91,7 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 			data acs_natl_&var.;
 				set &var.;
 				&var._raking=&var.;
-				mrgtotal=ACS23;
+				mrgtotal=ACS24;
 				keep mrgtotal &var._raking;
 			run;
 
@@ -105,10 +105,10 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 
 %mend;
 
-/*@Action: Import state ACS control totals to be used in weighting ***/
+/*@Action: Finish ACS control totals to be used in weighting ***/
 %macro acs_controls_state(var=);
 
-	proc import datafile= "&ACSFILEPATH.\ACS2023_state_population_totals.xlsx" 
+	proc import datafile= "&ACSFILEPATH.\ACS2024_state_population_totals.xlsx" 
 		out= &var.
 		dbms=xlsx
 		replace;
@@ -144,7 +144,7 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 
 			data acs_state_&var.;
 				set &var.;
-				mrgtotal=ACS23;
+				mrgtotal=ACS24;
 				state_&var._raking=catx("_", state_fips, &var1., &var2.);
 				keep mrgtotal state_&var._raking;
 			run;
@@ -152,28 +152,28 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 		%end;
 	%else
 		%do;
-			%if &var.=ru2 %then %do;
+			%if &var.=ru2 %then
+				%do;
 
 					data acs_state_&var.;
 						set &var.;
-						mrgtotal=ACS23;
-						state_&var._raking=catx("_", state_fips, &var.);
-						keep mrgtotal state_&var._raking;
-					run;
-
-			%end;
-			%else
-				%do;
-
-					data acs_state_&var.0;
-						set &var.;
-						mrgtotal=ACS23;
+						mrgtotal=ACS24;
 						state_&var._raking=catx("_", state_fips, &var.);
 						keep mrgtotal state_&var._raking;
 					run;
 
 				%end;
+			%else
+				%do;
 
+					data acs_state_&var.0;
+						set &var.;
+						mrgtotal=ACS24;
+						state_&var._raking=catx("_", state_fips, &var.);
+						keep mrgtotal state_&var._raking;
+					run;
+
+				%end;
 		%end;
 
 	proc datasets library=work nolist;
@@ -236,16 +236,17 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 	proc sql;
 		create table &var._list as 
 			select distinct state_&var._raking 
-				from prepped_file1&year_loop.&month_loop.;
+				from prepped_file1;
 	quit;
 
 	proc sort data=acs_state_&var.;
 		by state_&var._raking;
 	run;
 
-	data acs_state_&var.&year_loop.&month_loop.;
+	data acs_state_&var.;
 		merge acs_state_&var. (in=a) &var._list (in=b);
 		by state_&var._raking;
+
 		if a and b;
 	run;
 

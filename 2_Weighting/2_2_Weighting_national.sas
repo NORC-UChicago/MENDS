@@ -12,14 +12,50 @@
 
 	/*@Action: Subset to observations that are relevant to the analysis ***/
 	data select_files (rename=(prmpay2=insurance2 agecat8=age8 agecat3=age3));
-		set sasin.include_ehr&year_loop.&month_loop. (rename=(region=region_char));
-		where month=&month_loop. and year=&year_loop. and region_char is not null and ru2 is not null and ethnicity0 is not null;
+		set sasin.include_ehr&year_loop.&month. (rename=(region=region_char));
+		where month=&month. and year=&year_loop.;
 
 		if region_char="Northeast" then region='1';
 		else if region_char="Midwest" then region='2';
 		else if region_char="South" then region='3';
 		else if region_char="West" then region='4';
-	run;
+
+		/*@Action: remove missing state*/
+		if state="" then
+			delete;
+
+		/*@Action: remove missing rural/urban designation*/
+		if ru2="" then
+			delete;
+
+		/*@Action: remove missing ethnicity*/
+		if ethnicity0=. then
+			delete;
+
+		/*@Action: remove missing pph**/
+		if pph="" then
+			delete;
+
+		/*@Action: Remove >84 and <20 ***/
+		if agec0<5 or agec0>12 then
+			delete;
+
+		/*@Action: Remove unknown sex ***/
+		if sex0=. then
+			delete;
+
+		/*@Action: Remove unknown race **/
+		if raceeth in ("Unspecified","Missing","") then
+			delete;
+
+		/*@Action: Remove pregnant males ***/
+		if pregnant=1 and sex0=1 then
+			delete;
+
+		/*@Action: Remove pregnant females ***/
+		if pregnant=1 and sex0=2 then
+			delete;
+	Run;
 
 	proc sort data=select_files;
 		by aa_seq year;
@@ -64,13 +100,13 @@
 
 	proc datasets library=work nolist;
 		delete geo_age8 geo_raceeth4 geo_ru2 geo_region 
-					geo_age3_sex geo_raceeth4_sex geo_insurance2_age3 geo_insurance2_raceeth4;
+			geo_age3_sex geo_raceeth4_sex geo_insurance2_age3 geo_insurance2_raceeth4;
 	run;
 
 	quit;
 
 	proc print data=geo_freq;
-		title "sample size checker results for &month_loop-&year_loop. national";
+		title "sample size checker results for &month2-&year_loop. national";
 		where checker_results="sample size is insufficient";
 	run;
 
@@ -110,7 +146,7 @@
 
 	*@Action: complete alt 2 raking method without state: 	age8 raceeth4 ru2 region age3 * sex raceeth4 * sex insurance2 * age3 insurance2 * raceeth4;
 	%raking(inds=prepped_file1
-		, outds=wgt_alt2_natl_&year_loop.&month_loop.
+		, outds=wgt_htn_natl_&year_loop.&month.
 		, inwt=initwgt
 		, freqlist=acs_natl_age8 acs_natl_raceeth4 acs_natl_ru2 acs_natl_region acs_natl_age_sex acs_natl_race_sex acs_natl_ins_age acs_natl_ins_race
 		, outwt=rakewgt
@@ -125,12 +161,13 @@
 		by unique_id;
 	run;
 
-	proc sort data=wgt_alt2_natl_&year_loop.&month_loop. (keep=unique_id rakewgt);
+	proc sort data=wgt_htn_natl_&year_loop.&month. (keep=unique_id rakewgt);
 		by unique_id;
 	run;
 
-	data sasout.wgt_alt2_natl_&year_loop.&month_loop. (drop=unique_id);
-		merge prepped_file wgt_alt2_natl_&year_loop.&month_loop.;
+	data sasout.wgt_htn_natl_&year_loop.&month. (drop=unique_id);
+		merge prepped_file wgt_htn_natl_&year_loop.&month.;
 		by unique_id;
 	run;
+
 %mend;
