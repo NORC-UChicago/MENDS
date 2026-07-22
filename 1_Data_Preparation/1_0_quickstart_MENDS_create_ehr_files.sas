@@ -2,11 +2,11 @@
 /***PROGRAM: 1_0_quickstart_MENDS_create_ehr_files.SAS						 ***/
 /***VERSION: 1.0 									 ***/
 /***AUTHOR: DEVI CHELLURI (NORC) and NADARAJASUNDARAM GANESH (NORC)				 ***/
-/***DATE CREATED: 12/08/2023, DATE LAST MOD: 07/29/2025					 ***/
+/***DATE CREATED: 12/08/2023, DATE LAST MOD: 05/27/2026					 ***/
 /***INPUT: ORIGINAL MENDS DATA, ZIP TO COUNTY CROSSWALKS FROM HUD, ZIP TO RUCA CROSSWALK, AND COUNTY TO RUCC CROSSWALK***/
 /***OUTPUT: CLEANED MENDS DATA.				 ***/
 /***OBJECTIVE: CLEANED AND PROCESS MENDS DATA FOR STATISTICAL WEIGHTING. 	 ***/
-/***/UPDATES THAT NEED TO BE COMPLETED: NEED TO UPDATE LIST OF VARIABLES FOR DATASET PROCEDURES IN LINE 47, 57, AND 106/***/
+/***UPDATES THAT NEED TO BE COMPLETED: NEED TO UPDATE LIST OF VARIABLES FOR DATASET PROCEDURES IN LINE 47, 57, AND 106***/
 /***/
 /*******************************************************************************************/
 /***/%LET XWALKFILEPATH = ; /*@NOTE: Location of crosswalk files*/
@@ -17,6 +17,8 @@
 /***/%LET END_MONTH = ; /*@NOTE: input should be 2 digit month, e.g., 1 or 12*/
 /***/%LET YEARVAR = ; /*@NOTE: name of year variable*/
 /***/%LET MONTHVAR = ; /*@NOTE: name of month variable*/
+/***/%Let STATELIST=; 
+/*@Note: List of states if needed. States need to be in quotations and separated by commas*/
 /*************************************************************************************************************************************/
 /*@Action: Set SAS options ***/
 OPTIONS FULLSTIMER NOFMTERR MLOGIC MPRINT MINOPERATOR SYMBOLGEN COMPRESS=YES;
@@ -30,50 +32,53 @@ Quit;
 libname xwalk "&XWALKFILEPATH.";
 libname sasout "&OUTFILEPATH.\1_Pre_Processed_MENDS";
 
+%LET DateTime = %SYSFUNC(Translate(%Quote(%SYSFUNC(COMPBL(%QUOTE(%SYSFUNC(Today(),date9.) %SYSFUNC(Time(), timeampm.))))),%Str(___),%Str( ,:)));
+%PUT &DATETime.;
+
 /*@Action: Create LOG/PDF output folder and begin SAS log and PDF output ***/
 Proc Printto Log="&OUTFILEPATH.\3_SAS LOG\1_Pre_processing&start_year.&start_month._&end_year.&end_month._&DateTime..log" New;
 Run;
 
 ods listing file="&OUTFILEPATH.\3_SAS LOG\1_Pre_processing&start_year.&start_month._&end_year.&end_month._&DateTime..lst";
 
-proc import datafile="&XWALKFILEPATH.\zip_county_122024_from_hudq42024.xlsx" 
-	out=xwalk.zip_county_122024_from_hudq42024
+proc import datafile="P:\A335\Common\PUF_Data\Crosswalks\ZIP_COUNTY_092025_From_HUDQ32025.xlsx" 
+	out=xwalk.ZIP_COUNTY_092025_From_HUDQ32025
 	dbms=xlsx replace;
 	getnames=yes;
-	sheet="export worksheet";
+	sheet="Export Worksheet";
 run;
 
-proc sort data=xwalk.zip_county_122024_from_hudq42024;
+proc sort data=xwalk.ZIP_COUNTY_092025_From_HUDQ32025;
 	by zip descending res_ratio;
 run;
 
-proc sort data=xwalk.zip_county_122024_from_hudq42024 nodupkey;
+proc sort data=xwalk.ZIP_COUNTY_092025_From_HUDQ32025 nodupkey;
 	by zip;
 run;
 
-proc import datafile="&XWALKFILEPATH.\ruca2010zipcode.xlsx" 
+proc import datafile="P:\A335\Common\PUF_Data\Crosswalks\RUCA-codes-2020-zipcode.xlsx" 
 	out=xwalk.ruca2010zipcode
 	dbms=xlsx replace;
 	getnames=yes;
-	sheet="data";
+	sheet="RUCA 2020 ZIP Code Data";
 run;
 
-proc sort data=xwalk.ruca2010zipcode (drop=g h i j k l m rename=(zip_code=zip));
+proc sort data=xwalk.ruca2010zipcode (rename=(zipcode=zip));
 	by zip;
 run;
 
 data zip_xwalk (rename=(county=fips_state_county state=state_per_zip));
-	merge xwalk.zip_county_122024_from_hudq42024 (in=a) xwalk.ruca2010zipcode (in=b);
+	merge xwalk.ZIP_COUNTY_092025_From_HUDQ32025 (in=a) xwalk.ruca2010zipcode (in=b);
 	by zip;
 	
 	drop usps_zip_pref_city usps_zip_pref_state res_ratio bus_ratio oth_ratio tot_ratio;
 run;
 
-proc import datafile="&XWALKFILEPATH.\ruralurbancontinuumcodes2023.xlsx" 
+proc import datafile="P:\A335\Common\PUF_Data\Crosswalks\Ruralurbancontinuumcodes2023.xlsx" 
 	out=xwalk.ruralurbancontinuumcodes2023
 	dbms=xlsx replace;
 	getnames=yes;
-	sheet="rural-urban continuum code 2023";
+	sheet="Rural-urban Continuum Code 2023";
 run;
 
 proc sort data=zip_xwalk;
@@ -93,7 +98,6 @@ data xwalk.zip_xwalk_final;
 	fips_state=substr(fips_state_county,1,2);
 	fips_county=substr(fips_state_county,3,3);
 run;
-
 *@Action: define file name and file location. FILE NEEDS TO BE A CSV.;
 filename EHR00 "";
 
@@ -158,9 +162,9 @@ run;
 		run;
 
 		data EHR&year.&month. (rename=(race_=race));
-			set preproc_EHR&year.&month. (in=a rename=(=zip_code &yearvar.=year &monthvar.=month =encnters_last2yr =encts_total =sex =race_ =birthcohort =age_group2 =age_group 
-				=prmpayer =bmi =sysbp =dbp =ldl =triglc =hba1c =diab_dx =smoking =htn_esp =htn_dx =prediab =diab_t1 
-				=diab_t2 =insulin =metformin =flu_vac =asthma =new_race =census_tract));
+			set preproc_EHR&year.&month. (in=a rename=(=zip_code &yearvar.=year &monthvar.=month =encnters_last2yr =encts_total =sex ac=race_ =birthcohort =age_group
+				=sysbp =dbp =ldl =triglc =hba1c =diab_dx =smoking =htn_esp =htn_dx =prediab =diab_t1 =bmi_num =diab_t2 =insulin =metformin
+				=flu_vac =asthma =new_race =census_tract));
 
 			encnters_last1yr=input(ai,8.);
 			pregnant=input(am,8.);
@@ -228,7 +232,7 @@ run;
 		run;
 
 		data sasout.EHR&year.&month.;
-			merge EHR&year.&month. (in=a) zip_xwalk_final;
+			merge EHR&year.&month. (in=a) zip_xwalk_final (rename=(primaryruca=ruca1));
 			by zip_code;
 
 			if a;
@@ -237,11 +241,11 @@ run;
 				state="ZZ";
 		run;
 
-		Data Include_EHR&year.&month.;
-			set sasout.EHR&year.&month. (rename=(zip_code=ae ethnicity=ethnicity0 new_race=race0 age=agenum sex=sex0 age_group=agec0 prmpayer=bz pph=pph0));
+		Data sasout.Include_EHR&year.&month.;
+			set sasout.EHR&year.&month. (rename=(zip_code=ae));
 			format month_year yymm.;
 			month_year=input(catx('-',month,year),ANYDTDTE.);
-			length agec agec_col agecat agecat8 agecat3 ru2 sex raceeth raceeth2 raceeth3 raceeth4 raceeth_col prmpay $50. Region $12.;
+			length agecat agecat8 agecat3 ru2 sex raceeth raceeth2 raceeth3 raceeth4 raceeth_col prmpay $50. Region $12.;
 			state_fips=substr(fips_state_county,1,2);
 			state=state_fips;
 			COUNTY_FIPS=substr(FIPS_STATE_COUNTY,3,3);
@@ -271,7 +275,7 @@ run;
 			bp2yr = 0;
 
 			if pph0 in (0,1,2) then
-				bp2yr = 1;
+					bp2yr = 1;
 
 			/*@Action: chaaracter varabiale for pph*/
 			if pph0=. then
@@ -298,6 +302,22 @@ run;
 				htnc="1";
 			else if pph0=2 then
 				htnc="0";
+				
+			/*@Action: Create a categorical variable for BMI***/
+			if 1 <= bmi_num < 18.5 then
+				bmi="1";
+			else if 18.5 <= bmi_num < 25 then
+				bmi="2";
+			else if 25 <= bmi_num < 30 then
+				bmi="3";
+			else if 30 <= bmi_num < 35 then
+				bmi="4"; 
+			else if 35 <= bmi_num < 40 then
+				bmi="5";
+			else if 40 <= bmi_num then
+				bmi="6";  
+			else bmi="";
+
 
 			/*@Action: Update all race ethnicity values for all categories***/
 			/*@Action: Update race ethnicity values for report***/
@@ -333,12 +353,25 @@ run;
 							raceeth4="Black";
 							raceeth3="Black";
 						end;
+					*FOR ROUND 3, RSF , there is an issue with how “other” race was coded (patients were being misclassified as 
+						Other when their true race was White or Black or Asian). So, any Regenstrief patient that is “non-Hispanic Other,” 
+						please exclude for JUST Round 3. Please make a clear note of this exclusion. Also, exclusion is ONLY for Regenstrief.;
 					else if race0=4 then
 						do;
-							raceeth="Other";
-							raceeth2="Other";
-							raceeth4="Other";
-							raceeth3="Other";
+							if partner="RSF" then
+								do;
+									raceeth="Missing";
+									raceeth2="Missing";
+									raceeth4="Missing";
+									raceeth3="Missing";
+								end;
+							else 
+								do;
+									raceeth="Other";
+									raceeth2="Other";
+									raceeth4="Other";
+									raceeth3="Other";
+								end;
 						end;
 					else if race0=5 then
 						do;
@@ -361,6 +394,13 @@ run;
 							raceeth4="Other";
 							raceeth3="Other";
 						end;
+					else if race0=8 then
+						do;
+							raceeth="Other";
+							raceeth2="Multiple Race";
+							raceeth4="Other";
+							raceeth3="Other";
+						end;
 					else
 						do;
 							raceeth="Missing";
@@ -371,13 +411,11 @@ run;
 				end;
 
 			/*@Action: Update collapsed race category***/
-			if raceeth="White" then
+			if upcase(raceeth)="WHITE" then
 				raceeth_col="White";
-
-			if raceeth="Unspecified" then
+			else if raceeth="Unspecified" then
 				raceeth_col="Unspecified";
-
-			if raceeth="" then
+			else if raceeth="" then
 				raceeth_col="";
 			else raceeth_col="Other";
 
@@ -398,42 +436,6 @@ run;
 			if bz=3 then
 				prmpay2="Medicaid";
 			else prmpay2="Other";
-
-			/*@Action: Change age category to character***/
-			if agec0=1 then
-				agec="0-4";
-			else if agec0=2 then
-				agec="5-9";
-			else if agec0=3 then
-				agec="10-14";
-			else if agec0=4 then
-				agec="15-19";
-			else if agec0=5 then
-				agec="20-24";
-			else if agec0=6 then
-				agec="25-29";
-			else if agec0=7 then
-				agec="30-34";
-			else if agec0=8 then
-				agec="35-44";
-			else if agec0=9 then
-				agec="45-54";
-			else if agec0=10 then
-				agec="55-64";
-			else if agec0=11 then
-				agec="65-74";
-			else if agec0=12 then
-				agec="75-84";
-			else if agec0=13 then
-				agec="85+";
-
-			/*@Action: Change collapsed age category to character***/
-			if agec0 in (5,6,7,8) then
-				agec_col="20-44";
-			else if agec0 in (9,10) then
-				agec_col="45-64";
-			else if agec0 in (11,12) then
-				agec_col="65-84";
 
 			/*@Action: Change age category to character***/
 			if agec0=1 then
@@ -517,49 +519,13 @@ run;
 			else if State_FIPS in ('01','05','18','20','21','22','28','29','37','39','45','47','54') then
 				nhanes='4';
 
+			if state_fips in (&statelist);
+
 			if 1<=ruca1<=3 then
 				ru2='Mostly urban';
 			else if 4<=ruca1<=10 then
 				ru2='Mostly or completely rural';
 		run;
-
-		/*@Action: remove obesrvations based on exclusions*/
-		data sasout.Include_EHR&year.&month.;
-			set Include_EHR&year.&month.;
-
-			/*@Action: remove missing pph**/
-			if pph="" then
-				delete;
-
-			/*@Action: Remove >84 and <20 ***/
-			if agec0<5 or agec0>12 then
-				delete;
-
-			/*@Action: Remove no encounters in 2 years ***/
-			if no_enctr2yr=1 then
-				delete;
-
-			/*@Action: Remove no BP measurement in 2 years ***/
-			if bp2yr=0 then
-				delete;
-
-			/*@Action: Remove unknown sex ***/
-			if sex0=. then
-				delete;
-
-			/*@Action: Remove unknown race **/
-			if raceeth in ("Unspecified","Missing","") then
-				delete;
-
-			/*@Action: Remove pregnant males ***/
-			if pregnant=1 and sex0=1 then
-				delete;
-
-			/*@Action: Remove pregnant females ***/
-			if pregnant=1 and sex0=2 then
-				delete;
-		Run;
-
 	%end;
 %mend;
 
