@@ -57,18 +57,18 @@ proc sort data=xwalk.ZIP_COUNTY_092025_From_HUDQ32025 nodupkey;
 run;
 
 proc import datafile="P:\A335\Common\PUF_Data\Crosswalks\RUCA-codes-2020-zipcode.xlsx" 
-	out=xwalk.ruca2010zipcode
+	out=xwalk.ruca2020zipcode
 	dbms=xlsx replace;
 	getnames=yes;
 	sheet="RUCA 2020 ZIP Code Data";
 run;
 
-proc sort data=xwalk.ruca2010zipcode (rename=(zipcode=zip));
+proc sort data=xwalk.ruca2020zipcode (rename=(zipcode=zip));
 	by zip;
 run;
 
 data zip_xwalk (rename=(county=fips_state_county state=state_per_zip));
-	merge xwalk.ZIP_COUNTY_092025_From_HUDQ32025 (in=a) xwalk.ruca2010zipcode (in=b);
+	merge xwalk.ZIP_COUNTY_092025_From_HUDQ32025 (in=a) xwalk.ruca2020zipcode (in=b);
 	by zip;
 	
 	drop usps_zip_pref_city usps_zip_pref_state res_ratio bus_ratio oth_ratio tot_ratio;
