@@ -2,8 +2,9 @@
 	%if &national_est.=Y %then
 		%do;
 
-			Data EHR_for_Excl&year_loop.&month_loop.;
-				set orig.all_partner&year_loop.&month_loop. (rename=(zip_code=ae ethnicity=ethnicity0 new_race=race0 age=agenum sex=sex0 age_group=agec0 prmpayer=bz pph=pph0));
+			Data ehr_for_excl_htn&year_loop.&month_loop.;
+				set sasout.EHR&year_loop. (rename=(zip_code=ae ethnicity=ethnicity0 new_race=race0 age=agenum sex=sex0 age_group=agec0 prmpayer=bz pph=pph0));
+				where month=&month_loop.;
 				format month_year yymm.;
 				month_year=input(catx('-',month,year),ANYDTDTE.);
 				length agec agec_col agecat agecat8 agecat3 ru2 sex raceeth raceeth2 raceeth3 raceeth4 raceeth_col prmpay $50. Region $12.;
@@ -326,23 +327,59 @@
 				if ethnicity0=. then delete;
 			run;
 
-			data include_ehr&year_loop.&month_loop.;
-				set orig.include_ehr&year_loop.&month_loop.;
+			
+			data include_ehr_&type.&year_loop.&month_loop.;
+				set sasout.Include_EHR&year_loop.&month_loop.;
 
-				/*@Action: subset to valid states***/
-				if State_FIPS in ('01','02','04','05','06','08','09','10','11','12','13','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','44','45','46','47','48','49','50','51','53','54','55','56');
-					
-				if region="" then delete;
-				if ru2="" then delete;
-				if ethnicity0=. then delete;
+				/*@Action: subset to discussed states***/
+				if State_FIPS in ();
+
+				/*@Action: remove missing state*/
+				if state="" then
+					delete;
+
+				/*@Action: remove missing rural/urban designation*/
+				if ru2="" then
+					delete;
+
+				/*@Action: remove missing ethnicity*/
+				if ethnicity0=. then
+					delete;
+
+				/*@Action: remove missing pph**/
+				if pph="" then
+					delete;
+
+				/*@Action: Remove >84 and <20 ***/
+				if agec0<5 or agec0>12 then
+					delete;
+
+				/*@Action: Remove unknown sex ***/
+				if sex0=. then
+					delete;
+
+				/*@Action: Remove unknown race **/
+				if raceeth in ("Unspecified","Missing","") then
+					delete;
+
+				/*@Action: Remove pregnant males ***/
+				if pregnant=1 and sex0=1 then
+					delete;
+
+				/*@Action: Remove pregnant females ***/
+				if pregnant=1 and sex0=2 then
+					delete;
 			run;
+
+		%end;
 
 		%end;
 	%else %if &national_est.=N %then
 		%do;
 
 			Data EHR_for_Excl&year_loop.&month_loop.;
-				set orig.all_partner&year_loop.&month_loop. (rename=(zip_code=ae ethnicity=ethnicity0 new_race=race0 age=agenum sex=sex0 age_group=agec0 prmpayer=bz pph=pph0));
+				set sasout.EHR&year_loop. (rename=(zip_code=ae ethnicity=ethnicity0 new_race=race0 age=agenum sex=sex0 age_group=agec0 prmpayer=bz pph=pph0));
+				where month=&month_loop.;
 				format month_year yymm.;
 				month_year=input(catx('-',month,year),ANYDTDTE.);
 				length agec agec_col agecat agecat8 agecat3 ru2 sex raceeth raceeth2 raceeth3 raceeth4 raceeth_col prmpay $50. Region $12.;
@@ -665,15 +702,47 @@
 				if ethnicity0=. then delete;
 			run;
 
-			data include_ehr&year_loop.&month_loop.;
-				set orig.include_ehr&year_loop.&month_loop.;
+			data include_ehr_&type.&year_loop.&month_loop.;
+				set sasout.Include_EHR&year_loop.&month_loop.;
 
 				/*@Action: subset to discussed states***/
-				if State_FIPS in (&statelist.);
-					
-				if region="" then delete;
-				if ru2="" then delete;
-				if ethnicity0=. then delete;
+				if State_FIPS in ();
+
+				/*@Action: remove missing state*/
+				if state="" then
+					delete;
+
+				/*@Action: remove missing rural/urban designation*/
+				if ru2="" then
+					delete;
+
+				/*@Action: remove missing ethnicity*/
+				if ethnicity0=. then
+					delete;
+
+				/*@Action: remove missing pph**/
+				if pph="" then
+					delete;
+
+				/*@Action: Remove >84 and <20 ***/
+				if agec0<5 or agec0>12 then
+					delete;
+
+				/*@Action: Remove unknown sex ***/
+				if sex0=. then
+					delete;
+
+				/*@Action: Remove unknown race **/
+				if raceeth in ("Unspecified","Missing","") then
+					delete;
+
+				/*@Action: Remove pregnant males ***/
+				if pregnant=1 and sex0=1 then
+					delete;
+
+				/*@Action: Remove pregnant females ***/
+				if pregnant=1 and sex0=2 then
+					delete;
 			run;
 
 		%end;

@@ -2,7 +2,7 @@
 /***PROGRAM: 3_0_Quickstart_MENDS_exclusions_estimates.SAS						 ***/
 /***VERSION: 1.0 									 ***/
 /***AUTHOR: DEVI CHELLURI (NORC) and NADARAJASUNDARAM GANESH (NORC)				 ***/
-/***DATE CREATED: 12/08/2023, DATE LAST MOD: 07/29/2025					 ***/
+/***DATE CREATED: 12/08/2023, DATE LAST MOD: 05/27/2026					 ***/
 /***INPUT: Weighted MENDS DATA 						 ***/
 /***OUTPUT: PREVALENCE ESTIMATES BASED ON SELECTION CRITERIA.				 ***/
 /***OBJECTIVE: DATA AND USER SELECTIONS WILL BE USED TO QUERY DATA. 	 ***/
@@ -15,8 +15,7 @@
 /***/%LET START_MONTH = ; /*@NOTE: input should be 2 digit month, e.g., 1 or 12*/
 /***/%LET END_MONTH = ; /*@NOTE: input should be 2 digit month, e.g., 1 or 12*/
 /***/%LET GEOGRAPHIC_LEVEL = ;/*@NOTE: national, state, county, and zip, NEEDS TO BE LOWERCASE*/
-/***/%Let STATELIST="05","04","06","08","12","15","17","18","21","22","25","24","28","31","34","36","40","41","48","51","53","56"; 
-/*@Note: List of states if needed. States need to be in quotations and separated by commas*/
+
 /*************************************************************************************************************************************/
 /*@Action: Set SAS options ***/
 OPTIONS FULLSTIMER NOFMTERR MLOGIC MPRINT MINOPERATOR SYMBOLGEN COMPRESS=YES;
@@ -122,7 +121,6 @@ Libname SASOUT "&OUTFILEPATH.\2_Estimates";
 
 	%put &max.;
 
-/*%let est_loop=1;*/
 	%do est_loop=1 %to &max.;
 
 		proc sql noprint;
